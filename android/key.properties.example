@@ -1,0 +1,4 @@
+storePassword=TU_CONTRASEÑA
+keyPassword=TU_CONTRASEÑA
+keyAlias=vendemovil
+storeFile=vendemovil-release.jks
