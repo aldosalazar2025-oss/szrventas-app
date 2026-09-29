@@ -1,62 +1,48 @@
-# Szr Ventas
+# SzrVentas
 
-POS Flutter (Android + iOS): venta por unidad o kilos, escáner, tickets térmicos y WhatsApp.
+Aplicación móvil (Android) de punto de venta (POS) e inventario, pensada para negocios pequeños y medianos: tiendas, bodegas, boutiques de ropa y restaurantes.
 
-**Versión:** 2.0.0+2  
-**Bundle / applicationId:** `com.szrventas`
+## ¿Para qué sirve?
 
-App 100% local en el dispositivo. Sin Firebase ni servidor.
+Permite llevar el control completo de un negocio desde el celular:
 
-## Instalar en tu iPhone (sin App Store)
+- Vender productos escaneando su código de barras o eligiéndolos desde un catálogo visual.
+- Llevar el inventario al día (stock, precios, categorías, productos por peso, tallas/colores o tamaños con extras).
+- Cobrar e imprimir el ticket de venta en una impresora térmica, o enviarlo por WhatsApp.
+- Revisar el historial de ventas, con reportes y exportación a Excel.
 
-Sí se puede. No sube a la tienda: se genera un **IPA Ad Hoc** y lo instalas solo en **tu** iPhone.
+## ¿Cómo funciona?
 
-Necesitas cuenta **Apple Developer** (99 USD/año). Con cuenta gratis de Apple no se puede firmar un IPA en Codemagic para instalarlo estable.
+### 1. Vender (POS)
+Desde la pantalla principal se abre la cámara para escanear el código de barras del producto, o se abre el catálogo para buscarlo y tocarlo directamente. Cada producto agregado aparece en el carrito con su cantidad y subtotal:
 
-### 1. Registrar tu iPhone
+- **Productos por unidad:** se suman de uno en uno (o la cantidad que se indique).
+- **Productos por peso** (ej. carnes, granos): se pide el peso en gramos/kilos y el precio se calcula automáticamente.
+- **Productos con tallas y colores** (ej. ropa): al agregarlos se pide elegir la combinación específica (talla + color); el stock se descuenta de esa combinación puntual, no del total del producto.
+- **Productos con tamaños y conjuntos** (ej. comida de restaurante): al agregarlos se pide elegir el tamaño (Personal, Mediana, Familiar, etc., cada uno con su propio precio) y, si aplica, los extras o cremas del conjunto configurado, cada uno con su precio adicional.
 
-1. En el iPhone: **Ajustes → General → Información**. Copia el **UDID** (o conéctalo a un Mac / usa [udid.tech](https://udid.tech) / Finder).
-2. En [developer.apple.com](https://developer.apple.com) → **Certificates, Identifiers & Profiles** → **Devices** → agrega el iPhone (nombre + UDID).
-3. Crea el App ID **com.szrventas** si no existe.
+Con el carrito listo, se pasa a "Revisar Orden" para confirmar los productos, elegir el método de pago y cerrar la venta.
 
-### 2. Codemagic
+### 2. Cobrar e imprimir
+Al finalizar la venta se genera el ticket, que se puede:
+- Imprimir en una impresora térmica Bluetooth.
+- Compartir como texto por WhatsApp.
 
-1. Conecta el repo [aldosalazar2025-oss/szrventas-app](https://github.com/aldosalazar2025-oss/szrventas-app).
-2. **Teams → Code signing identities**: inicia sesión con Apple Developer.
-3. Distribution: **Ad Hoc** (no App Store). Bundle ID: `com.szrventas`.
-4. Lanza el workflow **iOS IPA para mi iPhone (Ad Hoc)**.
-5. Al terminar, descarga el archivo `.ipa`.
+El ticket incluye el detalle de cada producto, y cuando corresponde, la talla/color o el tamaño/extras elegidos.
 
-### 3. Instalar el IPA
+### 3. Inventario
+Desde la sección de inventario se crean y editan los productos: nombre, precio de compra y venta, stock, código de barras, categoría, foto, y el tipo de venta (unidad, peso, tallas/colores o tamaños/conjuntos). El stock se actualiza solo con cada venta.
 
-- **Windows:** [Sideloadly](https://sideloadly.io) o 3uTools, iPhone con cable, elige el `.ipa`.
-- **Mac:** Finder (iPhone conectado) o Apple Configurator 2 → arrastra el `.ipa`.
-- Primera vez en el iPhone: **Ajustes → General → Administración de VPN y dispositivos** → confiar en el certificado del desarrollador.
+### 4. Historial de ventas
+Muestra todas las ventas realizadas, con el detalle de productos vendidos (incluyendo variantes), totales, ganancias y métodos de pago. Se puede exportar todo a un archivo Excel para llevar la contabilidad fuera de la app.
 
-El IPA solo funciona en iPhones cuyo UDID registraste. Si cambias de teléfono, hay que registrar el nuevo y volver a compilar.
+### 5. Configuración
+Desde ajustes se personaliza el negocio (nombre, logo, moneda, métodos de pago) y se activan las funciones especiales según el tipo de negocio:
+- **Tallas y colores:** para tiendas de ropa, con stock independiente por combinación.
+- **Tamaños y variantes:** para restaurantes, con tamaños de precio variable y conjuntos de extras configurables.
 
-### Workflows
+Estas dos funciones son excluyentes entre sí: un negocio usa una u otra, según lo que venda.
 
-- **iOS Compile (sin firmar):** solo prueba que compile.
-- **iOS IPA para mi iPhone (Ad Hoc):** IPA para instalar directo.
+## En resumen
 
-## Local
-
-```bash
-flutter pub get
-flutter run
-```
-
-Android release (con `android/key.properties` y el `.jks` locales, no van al repo):
-
-```bash
-flutter build apk --release
-```
-
-## Permisos iOS
-
-Cámara (escáner), fotos (QR Yape/Plin), Bluetooth (impresora) y ubicación para BLE.
-
-## Secretos
-
-No se suben: `key.properties`, keystores, `.env`, `google-services.json`.
+SzrVentas cubre todo el ciclo de un negocio pequeño: **cargar el inventario → vender con o sin variantes → cobrar e imprimir → revisar lo vendido**, todo desde el celular y sin necesidad de conexión a internet para las operaciones del día a día.
