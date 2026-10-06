@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
@@ -641,7 +642,18 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
     final picker = ImagePicker();
     final image = await picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
-      setState(() => _imagenUrl = image.path);
+      // image_picker deja la foto en una carpeta temporal que el sistema
+      // puede limpiar; se copia a la carpeta de la app para que no se
+      // pierda y pueda incluirse en el respaldo.
+      final dir = await getApplicationDocumentsDirectory();
+      final carpeta = Directory('${dir.path}/imagenes_productos')
+        ..createSync(recursive: true);
+      final punto = image.path.lastIndexOf('.');
+      final ext = punto == -1 ? 'jpg' : image.path.substring(punto + 1);
+      final destino =
+          '${carpeta.path}/img_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      await File(image.path).copy(destino);
+      if (mounted) setState(() => _imagenUrl = destino);
     }
   }
 

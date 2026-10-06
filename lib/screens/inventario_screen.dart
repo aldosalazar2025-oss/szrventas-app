@@ -48,7 +48,7 @@ class _InventarioScreenState extends State<InventarioScreen> {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(() {
-        _monedaSimbolo = prefs.getString('moneda_simbolo') ?? 'S/';
+        _monedaSimbolo = (prefs.getString('moneda_simbolo')?.trim().isNotEmpty ?? false) ? prefs.getString('moneda_simbolo')!.trim() : 'S/';
       });
     }
   }

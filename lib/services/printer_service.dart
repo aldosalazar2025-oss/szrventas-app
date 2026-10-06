@@ -75,7 +75,7 @@ class PrinterService {
       anchoPapel: prefs.getDouble('impresora_ancho') ?? 58.0,
       mac: prefs.getString('impresora_mac'),
       printerName: prefs.getString('impresora_nombre'),
-      moneda: prefs.getString('moneda_simbolo') ?? 'S/',
+      moneda: (prefs.getString('moneda_simbolo')?.trim().isNotEmpty ?? false) ? prefs.getString('moneda_simbolo')!.trim() : 'S/',
       vendedor: prefs.getString('vendedor_activo'),
     );
   }

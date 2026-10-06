@@ -56,7 +56,7 @@ class _RevisarOrdenScreenState extends State<RevisarOrdenScreen> {
         _yapeQrPath = prefs.getString('yape_qr_path');
         _plinQrPath = prefs.getString('plin_qr_path');
         _metodosHabilitados = habilitados;
-        _monedaSimbolo = prefs.getString('moneda_simbolo') ?? 'S/';
+        _monedaSimbolo = (prefs.getString('moneda_simbolo')?.trim().isNotEmpty ?? false) ? prefs.getString('moneda_simbolo')!.trim() : 'S/';
         if (!_metodosHabilitados.contains(_metodoPago)) {
           _metodoPago = _metodosHabilitados.first;
         }
@@ -83,27 +83,26 @@ class _RevisarOrdenScreenState extends State<RevisarOrdenScreen> {
   }
 
   double _getVuelto(double total) {
-    final monto = double.tryParse(_montoCtrl.text) ?? 0;
-    return (monto - total).clamp(0, double.infinity);
+    final monto = _parseNum(_montoCtrl.text);
+    final v = ((monto - total) * 100).round() / 100;
+    return v < 0 ? 0.0 : v;
   }
 
+  double _parseNum(String t) =>
+      double.tryParse(t.trim().replaceAll(',', '.')) ?? 0.0;
+
   void _aplicarDescuento(CarritoProvider carrito) {
-    final valor =
-        double.tryParse(_descuentoCtrl.text.replaceAll(',', '.')) ?? 0.0;
-    double descuentoEnMoneda;
-    if (_modoDescuento == 'porcentaje') {
-      final double pct = valor.clamp(0.0, 100.0);
-      descuentoEnMoneda = carrito.subtotal * (pct / 100.0);
-    } else {
-      descuentoEnMoneda = valor;
-    }
-    carrito.setDescuento(descuentoEnMoneda);
+    carrito.setDescuentoRegla(
+      porcentaje: _modoDescuento == 'porcentaje',
+      valor: _parseNum(_descuentoCtrl.text),
+    );
   }
 
   Future<void> _procesar(CarritoProvider carrito) async {
+    if (_procesando) return;
     if (_metodoPago == 'efectivo') {
-      final monto = double.tryParse(_montoCtrl.text) ?? 0;
-      if (monto < carrito.total) {
+      final monto = _parseNum(_montoCtrl.text);
+      if ((monto * 100).round() < (carrito.total * 100).round()) {
         _mostrarAviso('Monto insuficiente', AppTheme.error);
         return;
       }
@@ -116,7 +115,7 @@ class _RevisarOrdenScreenState extends State<RevisarOrdenScreen> {
       final venta = await carrito.finalizarVenta(
         metodoPago: _metodoPago,
         montoPagado: _metodoPago == 'efectivo'
-            ? double.tryParse(_montoCtrl.text)
+            ? _parseNum(_montoCtrl.text)
             : null,
         nota: _notaCtrl.text,
       );

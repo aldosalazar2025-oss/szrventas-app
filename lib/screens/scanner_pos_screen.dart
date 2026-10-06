@@ -55,7 +55,7 @@ class _ScannerPosScreenState extends State<ScannerPosScreen> {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(() {
-        _monedaSimbolo = prefs.getString('moneda_simbolo') ?? 'S/';
+        _monedaSimbolo = (prefs.getString('moneda_simbolo')?.trim().isNotEmpty ?? false) ? prefs.getString('moneda_simbolo')!.trim() : 'S/';
       });
     }
   }
@@ -387,7 +387,9 @@ class _ScannerPosScreenState extends State<ScannerPosScreen> {
                                 gridDelegate:
                                     const SliverGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: 3,
-                                      childAspectRatio: 0.65,
+                                      // Alto fijo (no proporcional) para que el nombre, el
+                                      // precio y el stock siempre queden dentro del cuadro.
+                                      mainAxisExtent: 215,
                                       crossAxisSpacing: 12,
                                       mainAxisSpacing: 12,
                                     ),
@@ -433,62 +435,59 @@ class _ScannerPosScreenState extends State<ScannerPosScreen> {
                                                     ),
                                             ),
                                           ),
-                                          Expanded(
-                                            flex: 2,
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(
-                                                8.0,
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
+                                          Padding(
+                                            padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                // Espacio reservado para 2 líneas: los nombres
+                                                // largos se cortan con "..." y todas las
+                                                // tarjetas quedan alineadas.
+                                                SizedBox(
+                                                  height: MediaQuery.textScalerOf(
+                                                        context,
+                                                      ).scale(13 * 1.1) *
+                                                      2,
+                                                  child: Text(
                                                     p.nombre,
                                                     maxLines: 2,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
+                                                    overflow: TextOverflow.ellipsis,
                                                     style: const TextStyle(
                                                       fontSize: 13,
-                                                      fontWeight:
-                                                          FontWeight.w600,
+                                                      fontWeight: FontWeight.w600,
                                                       height: 1.1,
                                                     ),
                                                   ),
-                                                  const Spacer(),
-                                                  Text(
-                                                    p.precioLabel(_formatMoney),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: const TextStyle(
-                                                      fontSize: 13,
-                                                      color: AppTheme.primary,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  p.precioLabel(_formatMoney),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 13,
+                                                    color: AppTheme.primary,
+                                                    fontWeight: FontWeight.bold,
                                                   ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    p.formatoStock,
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: p.stock <=
-                                                              p.stockMinimo
-                                                          ? AppTheme.error
-                                                          : AppTheme
-                                                                .textSecondary,
-                                                      fontWeight: p.stock <=
-                                                              p.stockMinimo
-                                                          ? FontWeight.bold
-                                                          : FontWeight.normal,
-                                                    ),
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  p.formatoStock,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: p.stock <= p.stockMinimo
+                                                        ? AppTheme.error
+                                                        : AppTheme.textSecondary,
+                                                    fontWeight: p.stock <= p.stockMinimo
+                                                        ? FontWeight.bold
+                                                        : FontWeight.normal,
                                                   ),
-                                                ],
-                                              ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ],

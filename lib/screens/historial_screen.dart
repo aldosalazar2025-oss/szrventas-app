@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:excel/excel.dart' hide Border;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -46,7 +48,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(() {
-        _monedaSimbolo = prefs.getString('moneda_simbolo') ?? 'S/';
+        _monedaSimbolo = (prefs.getString('moneda_simbolo')?.trim().isNotEmpty ?? false) ? prefs.getString('moneda_simbolo')!.trim() : 'S/';
       });
     }
   }
@@ -615,17 +617,84 @@ class _HistorialScreenState extends State<HistorialScreen> {
         ]);
       }
 
-      var fileBytes = excel.save();
-      final dir = await getApplicationDocumentsDirectory();
+      final fileBytes = excel.save()!;
       final dateStr = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
-      final path = '${dir.path}/SzrVentas_Ventas_$dateStr.xlsx';
-      File(path)
-        ..createSync(recursive: true)
-        ..writeAsBytesSync(fileBytes!);
+      final nombreArchivo = 'SzrVentas_Ventas_$dateStr.xlsx';
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-      await Share.shareXFiles([
-        XFile(path),
-      ], text: 'Reporte de Ventas Szr Ventas');
+      Future<void> compartir() async {
+        final dir = await getApplicationDocumentsDirectory();
+        final path = '${dir.path}/$nombreArchivo';
+        await File(path).writeAsBytes(fileBytes);
+        final resultado = await Share.shareXFiles([
+          XFile(path),
+        ], text: 'Reporte de Ventas Szr Ventas');
+        if (mounted && resultado.status != ShareResultStatus.dismissed) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Compartido'),
+              backgroundColor: AppTheme.success,
+            ),
+          );
+        }
+      }
+
+      final opcion = await showModalBottomSheet<String>(
+        context: context,
+        builder: (ctx) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text(
+                  '¿Qué quieres hacer con el archivo?',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.download_rounded, color: AppTheme.primary),
+                title: const Text('Descargar en el teléfono'),
+                onTap: () => Navigator.pop(ctx, 'guardar'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.share_rounded, color: AppTheme.primary),
+                title: const Text('Compartir'),
+                onTap: () => Navigator.pop(ctx, 'compartir'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (opcion == null || !mounted) return;
+
+      if (opcion == 'compartir') {
+        await compartir();
+        return;
+      }
+
+      final ruta = await FilePicker.platform.saveFile(
+        dialogTitle: 'Guardar reporte de ventas',
+        fileName: nombreArchivo,
+        bytes: Uint8List.fromList(fileBytes),
+      );
+      if (!mounted) return;
+      if (ruta == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Guardado cancelado'),
+            backgroundColor: AppTheme.warning,
+          ),
+        );
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Guardado en el teléfono'),
+          backgroundColor: AppTheme.success,
+        ),
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -52,7 +52,7 @@ class _AjustesScreenState extends State<AjustesScreen> {
     _rucCtrl.text = prefs.getString('negocio_ruc') ?? '';
     _mensajeCtrl.text =
         prefs.getString('negocio_mensaje') ?? '¡Gracias por su compra!';
-    _monedaSimboloCtrl.text = prefs.getString('moneda_simbolo') ?? 'S/';
+    _monedaSimboloCtrl.text = (prefs.getString('moneda_simbolo')?.trim().isNotEmpty ?? false) ? prefs.getString('moneda_simbolo')!.trim() : 'S/';
     _anchoPapel = prefs.getDouble('impresora_ancho') ?? 58.0;
     _impresoraNombre = prefs.getString('impresora_nombre');
     _impresoraMac = prefs.getString('impresora_mac');
@@ -76,7 +76,7 @@ class _AjustesScreenState extends State<AjustesScreen> {
       anchoPapel: _anchoPapel,
       mac: _impresoraMac,
       printerName: _impresoraNombre,
-      moneda: _monedaSimboloCtrl.text,
+      moneda: _monedaSimboloCtrl.text.trim().isEmpty ? 'S/' : _monedaSimboloCtrl.text.trim(),
       vendedor: _vendedorActivo,
     );
 
@@ -90,7 +90,7 @@ class _AjustesScreenState extends State<AjustesScreen> {
     await prefs.setString('negocio_telefono', _telefonoCtrl.text);
     await prefs.setString('negocio_ruc', _rucCtrl.text);
     await prefs.setString('negocio_mensaje', _mensajeCtrl.text);
-    await prefs.setString('moneda_simbolo', _monedaSimboloCtrl.text);
+    await prefs.setString('moneda_simbolo', _monedaSimboloCtrl.text.trim().isEmpty ? 'S/' : _monedaSimboloCtrl.text.trim());
     await prefs.setDouble('impresora_ancho', _anchoPapel);
     if (_impresoraNombre != null)
       await prefs.setString('impresora_nombre', _impresoraNombre!);
@@ -130,7 +130,7 @@ class _AjustesScreenState extends State<AjustesScreen> {
       anchoPapel: _anchoPapel,
       mac: _impresoraMac,
       printerName: _impresoraNombre,
-      moneda: _monedaSimboloCtrl.text,
+      moneda: _monedaSimboloCtrl.text.trim().isEmpty ? 'S/' : _monedaSimboloCtrl.text.trim(),
       vendedor: _vendedorActivo,
     );
 
@@ -399,13 +399,15 @@ class _AjustesScreenState extends State<AjustesScreen> {
                 Icons.chevron_right,
                 color: AppTheme.textMuted,
               ),
-              onTap: () {
-                Navigator.push(
+              onTap: () async {
+                await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => const ConfiguracionAvanzadaScreen(),
                   ),
                 );
+                // Por si se restauró un respaldo con INFO de la tienda.
+                if (mounted) _cargar();
               },
             ),
           ),
@@ -699,11 +701,21 @@ class _AjustesScreenState extends State<AjustesScreen> {
     final image = await picker.pickImage(source: ImageSource.gallery);
     if (image == null || !mounted) return;
 
+    // La ruta de la galería es temporal: se copia a la carpeta de la app
+    // para que el QR no desaparezca y pueda ir en el respaldo.
+    final dir = await getApplicationDocumentsDirectory();
+    final punto = image.path.lastIndexOf('.');
+    final ext = punto == -1 ? 'jpg' : image.path.substring(punto + 1);
+    final destino =
+        '${dir.path}/${metodo}_qr_${DateTime.now().millisecondsSinceEpoch}.$ext';
+    await File(image.path).copy(destino);
+    if (!mounted) return;
+
     setState(() {
       if (metodo == 'yape') {
-        _yapeQrPath = image.path;
+        _yapeQrPath = destino;
       } else if (metodo == 'plin') {
-        _plinQrPath = image.path;
+        _plinQrPath = destino;
       }
     });
 

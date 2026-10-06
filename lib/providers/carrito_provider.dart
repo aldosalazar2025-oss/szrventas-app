@@ -11,7 +11,11 @@ import '../utils/peso_formatter.dart';
 /// Provider central del carrito de ventas
 class CarritoProvider extends ChangeNotifier {
   final List<ItemVenta> _items = [];
-  double _descuento = 0;
+  // El descuento se guarda como regla (monto fijo o porcentaje) y se
+  // recalcula siempre sobre el subtotal actual, para que no quede
+  // desfasado si cambian las cantidades o se elimina un producto.
+  bool _descuentoEsPorcentaje = false;
+  double _descuentoValor = 0;
   final _uuid = const Uuid();
 
   List<ItemVenta> get items => List.unmodifiable(_items);
@@ -20,8 +24,18 @@ class CarritoProvider extends ChangeNotifier {
   bool get isEmpty => _items.isEmpty;
 
   double get subtotal => _items.fold(0.0, (s, i) => s + i.subtotal);
-  double get descuento => _descuento;
-  double get total => (subtotal - _descuento).clamp(0, double.infinity);
+  double get descuento {
+    final sub = subtotal;
+    final d = _descuentoEsPorcentaje
+        ? sub * (_descuentoValor.clamp(0.0, 100.0) / 100.0)
+        : _descuentoValor;
+    return _redondear(d.clamp(0.0, sub).toDouble());
+  }
+
+  double get total =>
+      _redondear((subtotal - descuento).clamp(0.0, double.infinity).toDouble());
+
+  static double _redondear(double v) => (v * 100).roundToDouble() / 100;
 
   int cantidadEnCarrito(String productoId) {
     final idx = _items.indexWhere((i) => i.productoId == productoId);
@@ -118,14 +132,24 @@ class CarritoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Descuento como monto fijo en moneda.
   void setDescuento(double desc) {
-    _descuento = desc.clamp(0, subtotal);
+    _descuentoEsPorcentaje = false;
+    _descuentoValor = desc < 0 ? 0 : desc;
+    notifyListeners();
+  }
+
+  /// Descuento como regla: [porcentaje] true = %, false = monto fijo.
+  void setDescuentoRegla({required bool porcentaje, required double valor}) {
+    _descuentoEsPorcentaje = porcentaje;
+    _descuentoValor = valor < 0 ? 0 : valor;
     notifyListeners();
   }
 
   void limpiar() {
     _items.clear();
-    _descuento = 0;
+    _descuentoValor = 0;
+    _descuentoEsPorcentaje = false;
     notifyListeners();
   }
 
@@ -135,20 +159,23 @@ class CarritoProvider extends ChangeNotifier {
     String? nota,
   }) async {
     final ventaId = _uuid.v4();
+    final descuentoFinal = descuento;
+    final totalFinal = total;
+    final subtotalFinal = subtotal;
     final itemsConVentaId =
         _items.map((i) => i.copyWith(ventaId: ventaId)).toList();
 
     double? vuelto;
     if (metodoPago == 'efectivo' && montoPagado != null) {
-      vuelto = montoPagado - total;
+      vuelto = _redondear(montoPagado - totalFinal);
     }
 
     final venta = Venta(
       id: ventaId,
       items: itemsConVentaId,
-      subtotal: subtotal,
-      descuento: _descuento,
-      total: total,
+      subtotal: subtotalFinal,
+      descuento: descuentoFinal,
+      total: totalFinal,
       metodoPago: metodoPago,
       montoPagado: montoPagado,
       vuelto: vuelto,
