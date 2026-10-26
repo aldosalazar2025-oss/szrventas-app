@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
+import '../sync/android_store.dart';
+import '../sync/sqflite_adapter.dart';
 import 'package:path/path.dart';
 import '../models/producto.dart';
 import '../models/variante_producto.dart';
@@ -21,7 +23,7 @@ class DatabaseService {
     final path = join(dbPath, filePath);
     return await openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -85,6 +87,10 @@ class DatabaseService {
         "ALTER TABLE items_venta ADD COLUMN conjuntos_elegidos TEXT",
       );
     }
+    if (oldVersion < 7) {
+      // Sincronización por Wi-Fi: estado de envío de ventas y productos retirados.
+      await AndroidSyncStore.migrar(SqfliteSyncDb(db));
+    }
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -126,6 +132,7 @@ class DatabaseService {
     await db.execute('CREATE INDEX idx_prod_codigo ON productos (codigo_barras)');
     await db.execute('CREATE INDEX idx_ventas_fecha ON ventas (fecha)');
     await db.execute('CREATE INDEX idx_items_venta ON items_venta (venta_id)');
+    await AndroidSyncStore.migrar(SqfliteSyncDb(db));
   }
 
   Future<Producto?> obtenerProducto(String id) async {
@@ -137,6 +144,9 @@ class DatabaseService {
 
   Future<void> insertarProducto(Producto p) async {
     final db = await database;
+    // Un producto dado de baja en la PC no se vuelve a crear en el teléfono.
+    final retirado = await db.query('sync_eliminados', where: 'id = ?', whereArgs: [p.id], limit: 1);
+    if (retirado.isNotEmpty) return;
     await db.insert('productos', p.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 

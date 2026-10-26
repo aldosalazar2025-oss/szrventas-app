@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import '../utils/metodos_pago_config.dart';
 import '../widgets/soporte_dialog.dart';
 import 'configuracion_avanzada_screen.dart';
+import 'sync_android_panel.dart';
 
 class AjustesScreen extends StatefulWidget {
   const AjustesScreen({super.key});
@@ -336,7 +337,13 @@ class _AjustesScreenState extends State<AjustesScreen> {
                   DropdownMenuItem(value: 80.0, child: Text('80 mm (Grande)')),
                 ],
                 onChanged: (v) {
-                  if (v != null) setState(() => _anchoPapel = v);
+                  if (v != null) {
+                    setState(() => _anchoPapel = v);
+                    SharedPreferences.getInstance().then(
+                      (pr) => pr.setDouble('impresora_ancho', v),
+                    );
+                    PrinterService.instance.configurar(anchoPapel: v);
+                  }
                 },
               ),
             ),
@@ -411,6 +418,9 @@ class _AjustesScreenState extends State<AjustesScreen> {
               },
             ),
           ),
+          const SizedBox(height: 16),
+
+          _buildSection('Sincronización', Icons.wifi_tethering, const [SincronizacionAndroidPanel()]),
           const SizedBox(height: 16),
 
           _buildSection('Soporte', Icons.support_agent_rounded, [
@@ -832,11 +842,15 @@ class _AjustesScreenState extends State<AjustesScreen> {
       // Basic text print test
       List<int> bytes = [];
       bytes.addAll([0x1B, 0x40]); // Init
+      await PrinterService.instance.cargarDesdePrefs();
+      final ps = PrinterService.instance;
+      bytes.addAll(ps.comandoCodepage);
       bytes.addAll([0x1B, 0x61, 0x01]); // Align center
-      bytes.addAll("==========================\n".codeUnits);
-      bytes.addAll("     SZR VENTAS      \n".codeUnits);
-      bytes.addAll("    PRUEBA DE CONEXION    \n".codeUnits);
-      bytes.addAll("==========================\n\n\n\n".codeUnits);
+      bytes.addAll(ps.codificar("==========================\n"));
+      bytes.addAll(ps.codificar("SZR VENTAS\n"));
+      bytes.addAll(ps.codificar("PRUEBA DE CONEXIÓN\n"));
+      bytes.addAll(ps.codificar("Muñeco ñandú áéíóú ÁÉÍÓÚ ¡¿?!\n"));
+      bytes.addAll(ps.codificar("==========================\n\n\n\n"));
       await PrintBluetoothThermal.writeBytes(bytes);
 
       if (mounted) {
@@ -942,6 +956,15 @@ class _AjustesScreenState extends State<AjustesScreen> {
                             mac: p.macAdress,
                             printerName: p.name,
                           );
+                          // Guardar de inmediato: antes solo se guardaba al
+                          // pulsar "Guardar" y por eso, al cerrar la app, la
+                          // impresora se desvinculaba.
+                          final prefsImp =
+                              await SharedPreferences.getInstance();
+                          await prefsImp.setString(
+                              'impresora_mac', p.macAdress);
+                          await prefsImp.setString(
+                              'impresora_nombre', p.name);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('✅ Conectado a ${p.name}'),

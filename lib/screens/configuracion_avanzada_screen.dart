@@ -44,14 +44,31 @@ class _ConfiguracionAvanzadaScreenState
   bool _descargando = false;
   bool _generandoInfo = false;
   bool _importando = false;
+  bool _enviandoVentas = false;
   bool _tallasColoresHabilitado = false;
   bool _tamanosVariantesHabilitado = false;
+  bool _imprimirTildes = true;
 
   @override
   void initState() {
     super.initState();
+    _cargarImprimirTildes();
     _cargarEstadoTallasColores();
     _cargarEstadoTamanosVariantes();
+  }
+
+  Future<void> _cargarImprimirTildes() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() => _imprimirTildes = prefs.getBool('imprimir_tildes') ?? true);
+    }
+  }
+
+  Future<void> _cambiarImprimirTildes(bool v) async {
+    setState(() => _imprimirTildes = v);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('imprimir_tildes', v);
+    PrinterService.instance.configurar(tildes: v);
   }
 
   Future<void> _cargarEstadoTallasColores() async {
@@ -147,14 +164,17 @@ class _ConfiguracionAvanzadaScreenState
   /// Pregunta qué hacer con el archivo generado: descargarlo en el
   /// teléfono (selector de carpetas del sistema) o compartirlo
   /// (WhatsApp, correo, etc.).
-  Future<void> _guardarEnDispositivo(
+  ///
+  /// Devuelve true si el archivo se guardó o se compartió, y false si el
+  /// usuario canceló.
+  Future<bool> _guardarEnDispositivo(
     List<int> bytes,
     String nombreArchivo,
     String textoCompartir,
   ) async {
-    if (!mounted) return;
+    if (!mounted) return false;
 
-    Future<void> compartir() async {
+    Future<bool> compartir() async {
       final dir = await getApplicationDocumentsDirectory();
       final copia = '${dir.path}/$nombreArchivo';
       await File(copia).writeAsBytes(bytes);
@@ -162,9 +182,11 @@ class _ConfiguracionAvanzadaScreenState
         [XFile(copia)],
         text: textoCompartir,
       );
-      if (resultado.status != ShareResultStatus.dismissed) {
+      final completado = resultado.status != ShareResultStatus.dismissed;
+      if (completado) {
         _mostrarAviso('Compartido', AppTheme.success);
       }
+      return completado;
     }
 
     final opcion = await showModalBottomSheet<String>(
@@ -194,11 +216,10 @@ class _ConfiguracionAvanzadaScreenState
         ),
       ),
     );
-    if (opcion == null || !mounted) return;
+    if (opcion == null || !mounted) return false;
 
     if (opcion == 'compartir') {
-      await compartir();
-      return;
+      return compartir();
     }
 
     final ruta = await FilePicker.platform.saveFile(
@@ -206,12 +227,109 @@ class _ConfiguracionAvanzadaScreenState
       fileName: nombreArchivo,
       bytes: Uint8List.fromList(bytes),
     );
-    if (!mounted) return;
+    if (!mounted) return false;
     if (ruta == null) {
       _mostrarAviso('Guardado cancelado', AppTheme.warning);
-      return;
+      return false;
     }
     _mostrarAviso('Guardado en el teléfono', AppTheme.success);
+    return true;
+  }
+
+  static const _claveUltimoEnvioPanel = 'ventas_panel_ultimo_envio';
+
+  /// Genera un archivo con las ventas para que el Panel SZR Ventas (PC)
+  /// descuente ese stock de su inventario.
+  ///
+  /// La primera vez pregunta desde qué fecha enviar (para no descontar
+  /// ventas antiguas que el panel ya tiene contadas). Las siguientes veces
+  /// envía lo vendido desde el último envío, con 1 día de margen; el panel
+  /// ignora las ventas que ya recibió, así que no se descuenta dos veces.
+  Future<void> _enviarVentasAlPanel() async {
+    if (_enviandoVentas) return;
+    setState(() => _enviandoVentas = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final ultimo = DateTime.tryParse(
+        prefs.getString(_claveUltimoEnvioPanel) ?? '',
+      );
+
+      DateTime desde;
+      if (ultimo == null) {
+        final hoy = DateTime.now();
+        final elegida = await showDatePicker(
+          context: context,
+          initialDate: DateTime(hoy.year, hoy.month, hoy.day),
+          firstDate: DateTime(2020),
+          lastDate: hoy,
+          helpText: 'Enviar ventas desde esta fecha',
+        );
+        if (elegida == null) return;
+        desde = DateTime(elegida.year, elegida.month, elegida.day);
+      } else {
+        desde = ultimo.subtract(const Duration(days: 1));
+      }
+
+      final ventas = await _db.obtenerVentas(desde: desde);
+      if (ventas.isEmpty) {
+        _mostrarAviso('No hay ventas nuevas para enviar', AppTheme.warning);
+        return;
+      }
+
+      final contenido = {
+        'formato': 'szr-ventas',
+        'version': 2,
+        'generado': DateTime.now().toIso8601String(),
+        'ventas': [
+          for (final v in ventas)
+            {
+              'id': v.id,
+              'fecha': v.fecha.toIso8601String(),
+              'subtotal': v.subtotal,
+              'descuento': v.descuento,
+              'total': v.total,
+              'metodo_pago': v.metodoPago,
+              'monto_pagado': v.montoPagado,
+              'vuelto': v.vuelto,
+              'nota': v.nota,
+              'items': [
+                for (final i in v.items)
+                  {
+                    'producto_id': i.productoId,
+                    'codigo_barras': i.codigoBarras,
+                    'nombre': i.productoNombre,
+                    'cantidad': i.cantidad,
+                    'tipo_venta': i.tipoVenta,
+                    'precio_unitario': i.precioUnitario,
+                    'precio_compra': i.precioCompra,
+                    'subtotal': i.subtotal,
+                    'variante_talla': i.varianteTalla,
+                    'variante_color': i.varianteColor,
+                    'variante_color_hex': i.varianteColorHex,
+                    'tamano_nombre': i.tamanoNombre,
+                  },
+              ],
+            },
+        ],
+      };
+
+      final fecha = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+      final enviado = await _guardarEnDispositivo(
+        utf8.encode(jsonEncode(contenido)),
+        'SzrVentas_Ventas_$fecha.json',
+        '${ventas.length} ventas - Szr Ventas',
+      );
+      if (enviado) {
+        await prefs.setString(
+          _claveUltimoEnvioPanel,
+          DateTime.now().toIso8601String(),
+        );
+      }
+    } catch (e) {
+      _mostrarAviso('No se pudieron enviar las ventas: $e', AppTheme.error);
+    } finally {
+      if (mounted) setState(() => _enviandoVentas = false);
+    }
   }
 
   /// Extensión en minúsculas de una ruta o nombre de archivo (jpg por
@@ -571,7 +689,10 @@ class _ConfiguracionAvanzadaScreenState
     var creados = 0;
     var actualizados = 0;
     var fotosFallidas = 0;
+    var eliminados = 0;
     final errores = <String>[];
+    // IDs de los productos que SÍ vienen en el archivo del panel.
+    final idsDelPanel = <String>{};
 
     try {
       for (final raw in datos['prods'] as List) {
@@ -637,7 +758,9 @@ class _ConfiguracionAvanzadaScreenState
               ),
             );
             actualizados++;
+            idsDelPanel.add(existente.id);
           } else {
+            idsDelPanel.add(idDestino);
             await _db.insertarProducto(
               Producto(
                 id: idDestino,
@@ -661,8 +784,65 @@ class _ConfiguracionAvanzadaScreenState
       cliente.close(force: true);
     }
 
+    // Productos de la app que ya no existen en el panel. Solo se ofrece
+    // eliminarlos si el archivo se importó completo y sin errores.
+    if (errores.isEmpty && idsDelPanel.isNotEmpty && mounted) {
+      final todos = await _db.obtenerProductos();
+      final sobrantes =
+          todos.where((p) => !idsDelPanel.contains(p.id)).toList();
+      if (sobrantes.isNotEmpty && mounted) {
+        final vistos = sobrantes.take(8).map((p) => '• ${p.nombre}').join('\n');
+        final masDe = sobrantes.length > 8
+            ? '\n… y ${sobrantes.length - 8} más'
+            : '';
+        final eliminar = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: Text(
+              '${sobrantes.length} producto(s) no existen en el panel',
+            ),
+            content: SingleChildScrollView(
+              child: Text(
+                'Estos productos están en la app pero no vienen en el '
+                'respaldo del panel:\n\n$vistos$masDe\n\n'
+                '¿Eliminarlos de la app? Las ventas ya hechas se conservan.',
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Conservarlos'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: AppTheme.error),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Eliminar'),
+              ),
+            ],
+          ),
+        );
+        if (eliminar == true) {
+          for (final p in sobrantes) {
+            await _db.eliminarProducto(p.id);
+            final foto = p.imagenUrl;
+            if (foto != null && foto.isNotEmpty) {
+              try {
+                final archivo = File(foto);
+                if (await archivo.exists()) await archivo.delete();
+              } catch (_) {
+                // Si la foto no se puede borrar, no se interrumpe.
+              }
+            }
+            eliminados++;
+          }
+        }
+      }
+    }
+
     if (!mounted) return;
     final resumen = '$creados creados, $actualizados actualizados'
+        '${eliminados > 0 ? ', $eliminados eliminados' : ''}'
         '${fotosFallidas > 0 ? ', $fotosFallidas fotos no se pudieron descargar' : ''}'
         '${errores.isNotEmpty ? ', ${errores.length} con error' : ''}';
     _mostrarAviso(
@@ -999,6 +1179,27 @@ class _ConfiguracionAvanzadaScreenState
                     MaterialPageRoute(builder: (_) => const CodigosBarrasScreen()),
                   ),
                 ),
+                const Divider(height: 1),
+                SwitchListTile(
+                  secondary: const Icon(
+                    Icons.spellcheck_rounded,
+                    color: AppTheme.primary,
+                  ),
+                  title: const Text(
+                    'Imprimir ñ y tildes',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    _imprimirTildes
+                        ? 'Activado · Si en el ticket salen símbolos raros, '
+                            'desactívalo y se imprimirá n, a, e, i, o, u'
+                        : 'Desactivado · Se imprime n, a, e, i, o, u',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  value: _imprimirTildes,
+                  activeColor: AppTheme.primary,
+                  onChanged: _cambiarImprimirTildes,
+                ),
               ],
             ),
           ),
@@ -1105,6 +1306,27 @@ class _ConfiguracionAvanzadaScreenState
                         : const Icon(Icons.upload_file_outlined),
                     label: Text(
                       _importando ? 'Importando...' : 'Subir respaldo',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: _enviandoVentas ? null : _enviarVentasAlPanel,
+                    icon: _enviandoVentas
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppTheme.primary,
+                            ),
+                          )
+                        : const Icon(Icons.desktop_windows_outlined),
+                    label: Text(
+                      _enviandoVentas ? 'Generando...' : 'Enviar ventas al panel',
                     ),
                   ),
                 ),

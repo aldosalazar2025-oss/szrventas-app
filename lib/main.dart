@@ -6,6 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'theme/app_theme.dart';
 import 'providers/carrito_provider.dart';
 import 'screens/splash_screen.dart';
+import 'sync/servicio_android.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +18,8 @@ void main() async {
   ));
 
   runApp(const SzrVentasApp());
+  // Si el celular ya está emparejado con la PC, revisa cambios cada pocos segundos.
+  ServicioSyncAndroid.instance.iniciarSiConfigurado().catchError((_) {});
 }
 
 class SzrVentasApp extends StatelessWidget {
