@@ -1,78 +1,62 @@
-# SRZ VENTAS
+# Szr Ventas
 
-**Sistema de punto de venta (POS) móvil para Android y iPhone.**
-Desarrollado por **Grupo Salazar**.
+POS Flutter (Android + iOS): venta por unidad o kilos, escáner, tickets térmicos y WhatsApp.
 
-Versión: 2.0.1+3 · Hecho con Flutter · Funciona 100 % en el celular, sin servidor ni internet.
+**Versión:** 2.0.0+2  
+**Bundle / applicationId:** `com.szrventas`
 
----
+App 100% local en el dispositivo. Sin Firebase ni servidor.
 
-## ¿Qué es?
+## Instalar en tu iPhone (sin App Store)
 
-SRZ VENTAS es una app para vender desde el celular. Sirve para que un negocio pequeño registre sus ventas, controle su inventario e imprima tickets sin necesitar una computadora ni una caja registradora.
+Sí se puede. No sube a la tienda: se genera un **IPA Ad Hoc** y lo instalas solo en **tu** iPhone.
 
-## ¿Para qué sirve?
+Necesitas cuenta **Apple Developer** (99 USD/año). Con cuenta gratis de Apple no se puede firmar un IPA en Codemagic para instalarlo estable.
 
-- Cobrar rápido: escanear el producto, elegir el método de pago y listo.
-- Saber cuánto hay en stock y cuánto se vendió.
-- Entregar un ticket al cliente, impreso o por WhatsApp.
-- Llevar el historial de ventas y sacar reportes en Excel.
+### 1. Registrar tu iPhone
 
-## Funciones principales
+1. En el iPhone: **Ajustes → General → Información**. Copia el **UDID** (o conéctalo a un Mac / usa [udid.tech](https://udid.tech) / Finder).
+2. En [developer.apple.com](https://developer.apple.com) → **Certificates, Identifiers & Profiles** → **Devices** → agrega el iPhone (nombre + UDID).
+3. Crea el App ID **com.szrventas** si no existe.
 
-**Ventas**
-- Escáner de códigos de barras con la cámara.
-- Venta por **unidad** o por **peso** (gramos/kilos).
-- Descuento en **soles (S/)** o en **porcentaje (%)**; el descuento en % se recalcula si cambias el carrito.
-- Métodos de pago: **Efectivo, Yape, Plin y Tarjeta**, con QR de Yape/Plin para que el cliente escanee.
-- Monto recibido, botones rápidos de billetes y cálculo automático del **vuelto**.
-- Nota opcional por venta.
+### 2. Codemagic
 
-**Productos e inventario**
-- Productos con foto, precio de venta, precio de compra, stock y categoría.
-- **Tallas y colores** (variantes con su propio stock y código de barras).
-- **Tamaños** y **conjuntos de opciones** con precio extra (por ejemplo, tamaños o acompañamientos).
-- Generación y exportación de **códigos de barras** (imagen y PDF).
+1. Conecta el repo [aldosalazar2025-oss/szrventas-app](https://github.com/aldosalazar2025-oss/szrventas-app).
+2. **Teams → Code signing identities**: inicia sesión con Apple Developer.
+3. Distribution: **Ad Hoc** (no App Store). Bundle ID: `com.szrventas`.
+4. Lanza el workflow **iOS IPA para mi iPhone (Ad Hoc)**.
+5. Al terminar, descarga el archivo `.ipa`.
 
-**Tickets e impresión**
-- Impresión en **impresora térmica Bluetooth** (papel de 58 mm u 80 mm).
-- Ticket con nombre del negocio, dirección, teléfono, RUC y mensaje de pie personalizables.
-- Compartir el ticket por **WhatsApp**.
+### 3. Instalar el IPA
 
-**Control del negocio**
-- **Historial de ventas** con detalle de cada venta.
-- Exportación de ventas a **Excel**.
-- **Vendedores** y **categorías** configurables.
-- **Respaldo completo** (catálogo e imágenes) e importación en otro equipo.
-- Símbolo de moneda configurable (por defecto S/).
+- **Windows:** [Sideloadly](https://sideloadly.io) o 3uTools, iPhone con cable, elige el `.ipa`.
+- **Mac:** Finder (iPhone conectado) o Apple Configurator 2 → arrastra el `.ipa`.
+- Primera vez en el iPhone: **Ajustes → General → Administración de VPN y dispositivos** → confiar en el certificado del desarrollador.
 
-## Cómo funciona
+El IPA solo funciona en iPhones cuyo UDID registraste. Si cambias de teléfono, hay que registrar el nuevo y volver a compilar.
 
-1. **Primera vez:** la app muestra la bienvenida y pide los datos básicos del negocio.
-2. **Ajustes:** configura nombre, dirección, teléfono, RUC, métodos de pago, QR de Yape/Plin, vendedores e impresora.
-3. **Inventario:** agrega tus productos (a mano o escaneando su código).
-4. **Vender:** escanea o elige los productos, revisa la orden, aplica un descuento si quieres y elige el método de pago.
-5. **Cobrar:** confirma la venta. Se descuenta el stock, se guarda en el historial y se imprime o comparte el ticket.
+### Workflows
 
-Todos los datos se guardan **en el dispositivo**. Haz respaldos con frecuencia desde Ajustes → Avanzado.
+- **iOS Compile (sin firmar):** solo prueba que compile.
+- **iOS IPA para mi iPhone (Ad Hoc):** IPA para instalar directo.
 
-## Importante
-
-Los tickets son comprobantes simples de venta. **No son boletas ni facturas** ni documentos vinculados a SUNAT. Para emitir comprobantes oficiales hay que usar los sistemas autorizados por la normativa peruana.
-
-## Compilar
+## Local
 
 ```bash
 flutter pub get
-flutter run                      # probar en el celular
-flutter build apk --release      # generar el APK de Android
+flutter run
 ```
 
-Para Android release se necesita `android/key.properties` y el archivo `.jks` (no se suben al repositorio). Para iPhone se puede generar el IPA con Codemagic (`codemagic.yaml`).
+Android release (con `android/key.properties` y el `.jks` locales, no van al repo):
 
-Permisos que usa: cámara (escáner), fotos (QR de Yape/Plin), Bluetooth (impresora) y ubicación para buscar impresoras Bluetooth.
+```bash
+flutter build apk --release
+```
 
-## Créditos
+## Permisos iOS
 
-Desarrollado por **Grupo Salazar**.
-Soporte por WhatsApp: **+51 900 725 974**
+Cámara (escáner), fotos (QR Yape/Plin), Bluetooth (impresora) y ubicación para BLE.
+
+## Secretos
+
+No se suben: `key.properties`, keystores, `.env`, `google-services.json`.

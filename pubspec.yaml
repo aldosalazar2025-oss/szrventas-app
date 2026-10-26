@@ -1,7 +1,7 @@
 name: szr_ventas
 description: "Szr Ventas - Sistema POS con escáner de código de barras e impresión térmica"
 publish_to: 'none'
-version: 2.0.1+3
+version: 2.1.0+5
 
 environment:
   sdk: ^3.11.5
