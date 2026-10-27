@@ -7,56 +7,46 @@ POS Flutter (Android + iOS): venta por unidad o kilos, escáner, tickets térmic
 
 App 100% local en el dispositivo. Sin Firebase ni servidor.
 
-## Instalar en tu iPhone (sin App Store)
+# 📱 SZR VENTAS APP
 
-Sí se puede. No sube a la tienda: se genera un **IPA Ad Hoc** y lo instalas solo en **tu** iPhone.
+### Aplicación móvil de gestión de ventas
 
-Necesitas cuenta **Apple Developer** (99 USD/año). Con cuenta gratis de Apple no se puede firmar un IPA en Codemagic para instalarlo estable.
+SZR VENTAS APP es una aplicación diseñada para facilitar la gestión y el control de ventas desde dispositivos Android.
 
-### 1. Registrar tu iPhone
+---
 
-1. En el iPhone: **Ajustes → General → Información**. Copia el **UDID** (o conéctalo a un Mac / usa [udid.tech](https://udid.tech) / Finder).
-2. En [developer.apple.com](https://developer.apple.com) → **Certificates, Identifiers & Profiles** → **Devices** → agrega el iPhone (nombre + UDID).
-3. Crea el App ID **com.szrventas** si no existe.
+## 📥 Descargar aplicación
 
-### 2. Codemagic
+### 📲 SZR VENTAS APP para Android
 
-1. Conecta el repo [aldosalazar2025-oss/szrventas-app](https://github.com/aldosalazar2025-oss/szrventas-app).
-2. **Teams → Code signing identities**: inicia sesión con Apple Developer.
-3. Distribution: **Ad Hoc** (no App Store). Bundle ID: `com.szrventas`.
-4. Lanza el workflow **iOS IPA para mi iPhone (Ad Hoc)**.
-5. Al terminar, descarga el archivo `.ipa`.
+[⬇️ **DESCARGAR SZR VENTAS APP (.APK)**](https://github.com/aldosalazar2025-oss/szrventas-app/releases/download/1.1.1/SZR.VENTAS.V17.apk)
 
-### 3. Instalar el IPA
+**Versión:** 1.1.1  
+**Plataforma:** Android  
+**Formato:** `.apk`
 
-- **Windows:** [Sideloadly](https://sideloadly.io) o 3uTools, iPhone con cable, elige el `.ipa`.
-- **Mac:** Finder (iPhone conectado) o Apple Configurator 2 → arrastra el `.ipa`.
-- Primera vez en el iPhone: **Ajustes → General → Administración de VPN y dispositivos** → confiar en el certificado del desarrollador.
+---
 
-El IPA solo funciona en iPhones cuyo UDID registraste. Si cambias de teléfono, hay que registrar el nuevo y volver a compilar.
+## 🚀 Instalación
 
-### Workflows
+1. Pulsa el enlace de descarga.
+2. Descarga el archivo `SZR.VENTAS.V17.apk`.
+3. Abre el archivo descargado en tu dispositivo Android.
+4. Si el sistema lo solicita, permite la instalación desde esa fuente, siempre que confíes en el archivo.
+5. Sigue las instrucciones para completar la instalación.
 
-- **iOS Compile (sin firmar):** solo prueba que compile.
-- **iOS IPA para mi iPhone (Ad Hoc):** IPA para instalar directo.
+---
 
-## Local
+## 📋 Información del proyecto
 
-```bash
-flutter pub get
-flutter run
-```
+- **Nombre:** SZR VENTAS APP
+- **Tipo:** Aplicación móvil
+- **Sistema operativo:** Android
+- **Distribución:** GitHub Releases
 
-Android release (con `android/key.properties` y el `.jks` locales, no van al repo):
+---
 
-```bash
-flutter build apk --release
-```
+## 📌 Nota
 
-## Permisos iOS
+La instalación requiere un dispositivo Android compatible. Descarga el APK únicamente desde una fuente confiable.
 
-Cámara (escáner), fotos (QR Yape/Plin), Bluetooth (impresora) y ubicación para BLE.
-
-## Secretos
-
-No se suben: `key.properties`, keystores, `.env`, `google-services.json`.
